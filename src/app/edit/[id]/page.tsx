@@ -1,0 +1,291 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { IBlogPost } from '@/models/BlogPost';
+
+export default function EditPost({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const [post, setPost] = useState<IBlogPost | null>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    excerpt: '',
+    author: '',
+    tags: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fetchError, setFetchError] = useState('');
+  const [id, setId] = useState<string>('');
+
+  useEffect(() => {
+    const getParams = async () => {
+      const resolvedParams = await params;
+      setId(resolvedParams.id);
+    };
+    getParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchPost = async () => {
+      try {
+        const response = await fetch(`/api/posts/${id}`);
+        const data = await response.json();
+
+        if (data.success) {
+          const postData = data.data;
+          setPost(postData);
+          setFormData({
+            title: postData.title,
+            content: postData.content,
+            excerpt: postData.excerpt,
+            author: postData.author,
+            tags: postData.tags.join(', '),
+          });
+        } else {
+          setFetchError('Failed to load post');
+        }
+      } catch {
+        setFetchError('Error loading post');
+      }
+    };
+
+    fetchPost();
+  }, [id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const tagsArray = formData.tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag !== '');
+
+      const response = await fetch(`/api/posts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          tags: tagsArray,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        router.push(`/posts/${id}`);
+      } else {
+        setError(data.error || 'Failed to update post');
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        router.push('/');
+      } else {
+        setError(data.error || 'Failed to delete post');
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <nav className="mb-8">
+            <Link
+              href="/"
+              className="text-blue-600 hover:text-blue-800 transition-colors font-medium"
+            >
+              ← Back to Home
+            </Link>
+          </nav>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            {fetchError}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <nav className="mb-8">
+          <Link
+            href={`/posts/${id}`}
+            className="text-blue-600 hover:text-blue-800 transition-colors font-medium"
+          >
+            ← Back to Post
+          </Link>
+        </nav>
+
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">Edit Post</h1>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+                Title *
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter post title"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-2">
+                Author *
+              </label>
+              <input
+                type="text"
+                id="author"
+                name="author"
+                value={formData.author}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter author name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="excerpt" className="block text-sm font-medium text-gray-700 mb-2">
+                Excerpt *
+              </label>
+              <textarea
+                id="excerpt"
+                name="excerpt"
+                value={formData.excerpt}
+                onChange={handleChange}
+                required
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Brief description of the post (max 200 characters)"
+                maxLength={200}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                {formData.excerpt.length}/200 characters
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
+                Content *
+              </label>
+              <textarea
+                id="content"
+                name="content"
+                value={formData.content}
+                onChange={handleChange}
+                required
+                rows={12}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Write your blog post content here..."
+              />
+            </div>
+
+            <div>
+              <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
+              </label>
+              <input
+                type="text"
+                id="tags"
+                name="tags"
+                value={formData.tags}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter tags separated by commas (e.g., tech, programming, javascript)"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Separate multiple tags with commas
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Updating...' : 'Update Post'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Delete Post
+              </button>
+              <Link
+                href={`/posts/${id}`}
+                className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Cancel
+              </Link>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
