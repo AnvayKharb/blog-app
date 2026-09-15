@@ -196,3 +196,6 @@ For support, please open an issue on GitHub or contact the project maintainer.
 ---
 
 Built with ❤️ using Next.js and MongoDB
+# blog-app
+this is my blog app
+this is my frst contribution
