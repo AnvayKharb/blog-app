@@ -232,3 +232,6 @@ If you encounter any issues or have questions, please:
 ---
 
 Built with ❤️ by [AnvayKharb](https://github.com/AnvayKharb)
+# blog-app
+this is my blog app
+this is my frst contribution
